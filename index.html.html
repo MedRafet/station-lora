@@ -1,0 +1,106 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Station LoRa</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; padding: 20px; }
+    h1 { text-align: center; }
+    .container { max-width: 400px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .card h2 { margin-top: 0; }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #00796b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .etat { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🌱 Station LoRa</h1>
+  <div class="container">
+    <div class="card">
+      <h2>🍅 Tomate</h2>
+      <p>🌡️ Température: <span id="tomate_temp">...</span> °C</p>
+      <p>💧 Humidité: <span id="tomate_hum">...</span> %</p>
+      <p>🌱 Sol: <span id="tomate_sol">...</span> %</p>
+    </div>
+    <div class="card">
+      <h2>🌶️ Poivre</h2>
+      <p>🌡️ Température: <span id="poivre_temp">...</span> °C</p>
+      <p>💧 Humidité: <span id="poivre_hum">...</span> %</p>
+      <p>🌱 Sol: <span id="poivre_sol">...</span> %</p>
+    </div>
+    <div class="card">
+      <h2>💧 Pompe à eau</h2>
+      <p>État : <span class="etat" id="pompe_etat">...</span></p>
+      <button class="btn" onclick="togglePompe()">Allumer / Éteindre</button>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = "BBUS-Dj7Ahi5qZq6FWIe29IhWj1ZMBsnQLo";
+    const BASE_URL = "https://stem.ubidots.com/api/v1.6/devices/station-lora/";
+
+    const variables = {
+      tomate_temp: "tomate_temperature",
+      tomate_hum: "tomate_humidite",
+      tomate_sol: "tomate_sol",
+      poivre_temp: "poivre_temperature",
+      poivre_hum: "poivre_humidite",
+      poivre_sol: "poivre_sol",
+      pompe: "pompe_etat"
+    };
+
+    async function fetchValue(variable) {
+      const res = await fetch(`${BASE_URL}${variable}/values?token=${TOKEN}`);
+      const data = await res.json();
+      return data.results[0]?.value.toFixed(1) || "0.0";
+    }
+
+    async function updateData() {
+      document.getElementById("tomate_temp").innerText = await fetchValue(variables.tomate_temp);
+      document.getElementById("tomate_hum").innerText = await fetchValue(variables.tomate_hum);
+      document.getElementById("tomate_sol").innerText = await fetchValue(variables.tomate_sol);
+      document.getElementById("poivre_temp").innerText = await fetchValue(variables.poivre_temp);
+      document.getElementById("poivre_hum").innerText = await fetchValue(variables.poivre_hum);
+      document.getElementById("poivre_sol").innerText = await fetchValue(variables.poivre_sol);
+
+      const pompeEtat = await fetchValue(variables.pompe);
+      document.getElementById("pompe_etat").innerText = pompeEtat === "1.0" ? "Allumée" : "Éteinte";
+    }
+
+    async function togglePompe() {
+      const res = await fetch(`${BASE_URL}${variables.pompe}/values?token=${TOKEN}`);
+      const data = await res.json();
+      const current = data.results[0]?.value || 0;
+      const newState = current === 1 ? 0 : 1;
+
+      await fetch(`${BASE_URL}${variables.pompe}/values`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Auth-Token": TOKEN },
+        body: JSON.stringify({ value: newState })
+      });
+
+      updateData();
+    }
+
+    updateData();
+    setInterval(updateData, 10000);
+  </script>
+</body>
+</html>
