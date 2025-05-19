@@ -1,6 +1,4 @@
-from pathlib import Path
-
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -87,43 +85,42 @@ html_content = """<!DOCTYPE html>
     const TOKEN = "BBUS-Dj7Ahi5qZq6FWIe29IhWj1ZMBsnQLo";
     const DEVICE_LABEL = "station-lora";
 
-    async function getVar(variable) {
-      const res = await fetch(`https://stem.ubidots.com/api/v1.6/devices/${DEVICE_LABEL}/${variable}/values?page_size=1`, {
-        headers: { "X-Auth-Token": TOKEN }
-      });
-      const json = await res.json();
-      return json.results?.[0]?.value;
-    }
-
     async function chargerDonnees() {
       try {
-        const [tempTomate, humTomate, solTomate, tempPoivre, humPoivre, solPoivre, pompe] = await Promise.all([
-          getVar("tomate_temperature"),
-          getVar("tomate_humidite"),
-          getVar("tomate_sol"),
-          getVar("poivre_temperature"),
-          getVar("poivre_humidite"),
-          getVar("poivre_sol"),
-          getVar("pompe"),
-        ]);
+        const res = await fetch(`https://stem.ubidots.com/api/v1.6/devices/${DEVICE_LABEL}/values?token=${TOKEN}`);
+        const data = await res.json();
 
-        document.getElementById("tempTomate").textContent = tempTomate?.toFixed(1) || "...";
-        document.getElementById("humTomate").textContent = humTomate?.toFixed(1) || "...";
-        document.getElementById("solTomate").textContent = solTomate?.toFixed(1) || "...";
+        const getVar = (label) => {
+          const d = data.results.find(v => v.variable === label);
+          return d ? d.value.toFixed(1) : "...";
+        };
 
-        document.getElementById("tempPoivre").textContent = tempPoivre?.toFixed(1) || "...";
-        document.getElementById("humPoivre").textContent = humPoivre?.toFixed(1) || "...";
-        document.getElementById("solPoivre").textContent = solPoivre?.toFixed(1) || "...";
+        document.getElementById("tempTomate").textContent = getVar("tomate_temperature");
+        document.getElementById("humTomate").textContent = getVar("tomate_humidite");
+        document.getElementById("solTomate").textContent = getVar("tomate_sol");
 
-        document.getElementById("etatPompe").textContent = pompe === 1 ? "Allumée" : "Éteinte";
+        document.getElementById("tempPoivre").textContent = getVar("poivre_temperature");
+        document.getElementById("humPoivre").textContent = getVar("poivre_humidite");
+        document.getElementById("solPoivre").textContent = getVar("poivre_sol");
+
+        const pompeRes = await fetch(`https://stem.ubidots.com/api/v1.6/devices/${DEVICE_LABEL}/pompe/values?page_size=1`, {
+          headers: { "X-Auth-Token": TOKEN }
+        });
+        const pompeJson = await pompeRes.json();
+        const etat = pompeJson.results?.[0]?.value;
+        document.getElementById("etatPompe").textContent = etat === 1 ? "Allumée" : "Éteinte";
       } catch (e) {
-        console.error("Erreur Ubidots :", e);
+        console.error("Erreur API:", e);
       }
     }
 
     document.getElementById("togglePompe").addEventListener("click", async () => {
       try {
-        const etatActuel = await getVar("pompe");
+        const res = await fetch(`https://stem.ubidots.com/api/v1.6/devices/${DEVICE_LABEL}/pompe/values?page_size=1`, {
+          headers: { "X-Auth-Token": TOKEN }
+        });
+        const json = await res.json();
+        const etatActuel = json.results?.[0]?.value;
         const newValue = etatActuel === 1 ? 0 : 1;
 
         await fetch(`https://stem.ubidots.com/api/v1.6/devices/${DEVICE_LABEL}/pompe/values`, {
@@ -146,9 +143,3 @@ html_content = """<!DOCTYPE html>
   </script>
 </body>
 </html>
-"""
-
-# Write HTML content to a file
-output_path = Path("/mnt/data/station-lora-dashboard.html")
-output_path.write_text(html_content, encoding="utf-8")
-output_path
